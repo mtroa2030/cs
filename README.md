@@ -51,11 +51,11 @@ Outputs: The program prints formatted task lists, status updates, and confirmati
 
 # Example Output
 ===== STUDY TRACKER =====
-1 - Add Task
-2 - View Tasks
-3 - Mark Task as Done
-4 - Exit
-Choose: 1
+- 1 - Add Task
+- 2 - View Tasks
+- 3 - Mark Task as Done
+- 4 - Exit
+- Choose: 1
 
 --- ADD TASK ---
 Task name: Homework 3
