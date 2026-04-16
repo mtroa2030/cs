@@ -1,7 +1,14 @@
 # Change Log
 
 Members: Asis, Roa, Muanag
+#v2.3.2
+Date: April 16, 2026
+- Added a GUI and Message box to search for assessments
 
+#v2.2.2
+Date: April 16, 2026
+- Removed the feature: Confirmation of deletion feature 
+ 
 #v2.2.1 
 Date: February 25, 2026
 - Added a new feature : The system asks the user for confirmation of deletion of tasks.
