@@ -2,6 +2,25 @@
 
 Members: Asis, Roa, Muanag
 
+#v2.4.0
+Date: April 20, 2026 
+- Added save and load tasks feature using JSON file
+- Added deadline input with date and time validation
+- Added task type selection (Quiz, Assignment, etc.)
+- Added work type selection (Individual, Pair, Group)
+- Added topics field for extra task details
+- Added notes field for additional reminders
+- Added priority level display
+- Added progress tracking feature
+- Added progress bar to show completed tasks
+- Improved graphical user interface layout
+
+#v2.3.2
+Date: April 17, 2026
+- Fixed invalid date input errors
+- Fixed scrolling issue where details moved behind new windows
+- Improved task display behavior
+  
 #v2.3.1
 Date: April 16, 2026
 - Added a GUI and Message box to search for assessments
