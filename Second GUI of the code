@@ -1,0 +1,425 @@
+import tkinter as tk
+from tkinter import messagebox, ttk
+import json
+import os
+from datetime import datetime
+
+# -----------------------------
+# File for saving
+# -----------------------------
+DATA_FILE = "tasks.json"
+
+# -----------------------------
+# Data storage (list of dicts = simpler + less bugs)
+# -----------------------------
+tasks = []
+
+# -----------------------------
+# Save / Load
+# -----------------------------
+def save_tasks():
+    with open(DATA_FILE, "w") as f:
+        json.dump(tasks, f, indent=4)
+
+
+def load_tasks():
+    if os.path.exists(DATA_FILE):
+        try:
+            with open(DATA_FILE, "r") as f:
+                data = json.load(f)
+                if isinstance(data, list):
+                    tasks.extend(data)
+        except:
+            pass
+
+# -----------------------------
+# UI Functions
+# -----------------------------
+def refresh_list():
+    listbox.delete(0, tk.END)
+
+    done_count = 0
+
+    for i, t in enumerate(tasks):
+        status = "Done" if t["done"] else "Not done"
+        if t["done"]:
+            done_count += 1
+
+        work_type = t.get("work_type", "Individual")
+        priority = t.get("priority", "Medium")
+
+        listbox.insert(
+            tk.END,
+            f"{i+1}. {t['task']} | {t['subject']} | {t['deadline']} | {t['type']} | {priority} | {work_type} | {status}"
+        )
+
+    total = len(tasks)
+    progress_label.config(text=f"Progress: {done_count} / {total} Tasks Done")
+
+    if total > 0:
+        progress['value'] = (done_count / total) * 100
+    else:
+        progress['value'] = 0
+
+
+def add_task():
+    task = entry_task.get().strip()
+    subject = entry_subject.get().strip()
+    deadline = entry_deadline.get().strip()
+    task_type = combo_type.get()
+    topic = entry_topics.get().strip()
+    work_type = work_combo.get()
+    priority = priority_combo.get()
+    notes = notes_text.get("1.0", tk.END).strip()
+
+    if not task or not subject or not deadline:
+        messagebox.showwarning("Error", "Please fill all required fields!")
+        return
+
+    try:
+        datetime.strptime(deadline, "%Y-%m-%d %H:%M")
+    except ValueError:
+        messagebox.showwarning("Error", "Deadline must be in YYYY-MM-DD HH:MM format")
+        return
+
+    tasks.append({
+        "task": task,
+        "subject": subject,
+        "deadline": deadline,
+        "type": task_type,
+        "topics": topic,
+        "work_type": work_type,
+        "priority": priority,
+        "notes": notes,
+        "done": False
+    })
+
+    save_tasks()
+    refresh_list()
+
+    entry_task.delete(0, tk.END)
+    entry_subject.delete(0, tk.END)
+    entry_deadline.delete(0, tk.END)
+    entry_topics.delete(0, tk.END)
+    notes_text.delete("1.0", tk.END)
+    priority_combo.set("Medium")
+
+
+def mark_done():
+    try:
+        index = listbox.curselection()[0]
+        tasks[index]["done"] = True
+        save_tasks()
+        refresh_list()
+    except:
+        messagebox.showwarning("Error", "Select a task first!")
+
+
+def delete_task():
+    try:
+        index = listbox.curselection()[0]
+        confirm = messagebox.askyesno("Confirm", "Delete this task?")
+        if confirm:
+            tasks.pop(index)
+            save_tasks()
+            refresh_list()
+    except:
+        messagebox.showwarning("Error", "Select a task first!")
+
+
+open_detail_windows = {}
+MAX_OPEN_WINDOWS = 5
+
+def show_details(event):
+    selected = listbox.curselection()
+    if not selected:
+        return
+
+    index = selected[0]
+    t = tasks[index]
+
+    task_key = f"{t['task']}_{t['deadline']}"
+
+    if task_key in open_detail_windows:
+        existing_window = open_detail_windows[task_key]
+
+        try:
+            existing_window.lift()
+            existing_window.focus_force()
+            return
+        except:
+            del open_detail_windows[task_key]
+    
+    if len(open_detail_windows) >= MAX_OPEN_WINDOWS:
+        messagebox.showwarning(
+            "Too Many Windows",
+            "You can only open up to 5 task detail windows at once."
+        )
+        return
+
+    details_window = tk.Toplevel(root)
+    details_window.lift()
+    details_window.focus_force()
+    details_window.attributes("-topmost", True)
+    details_window.after(100, lambda: details_window.attributes("-topmost", False))
+    details_window.title("Task Details")
+    details_window.geometry("500x400")
+    details_window.configure(bg="#1c2331")
+
+    open_detail_windows[task_key] = details_window
+
+    def on_close():
+        if task_key in open_detail_windows:
+            del open_detail_windows[task_key]
+        details_window.destroy()
+
+    details_window.protocol("WM_DELETE_WINDOW", on_close)
+
+    scrollbar = tk.Scrollbar(details_window)
+    scrollbar.pack(side="right", fill="y")
+
+    text_area = tk.Text(
+        details_window,
+        wrap="word",
+        yscrollcommand=scrollbar.set,
+        bg="#2f4159",
+        fg="white",
+        font=("Segoe UI", 10)
+    )
+    text_area.pack(fill="both", expand=True, padx=10, pady=10)
+
+    scrollbar.config(command=text_area.yview)
+
+    info = f"""
+Task: {t['task']}
+
+Subject: {t['subject']}
+
+Deadline: {t['deadline']}
+
+Type: {t['type']}
+
+Work Type: {t.get('work_type', 'Individual')}
+
+Priority: {t.get('priority', 'Medium')}
+
+Topics: {t['topics']}
+
+Notes: {t.get('notes', '')}
+
+Status: {'Done' if t['done'] else 'Not done'}
+"""
+
+    text_area.insert("1.0", info)
+    text_area.config(state="disabled")
+
+    open_detail_windows = {}
+
+def show_details(event):
+    selected = listbox.curselection()
+    if not selected:
+        return
+
+    index = selected[0]
+    t = tasks[index]
+
+    task_key = f"{t['task']}_{t['deadline']}"
+
+    if task_key in open_detail_windows:
+        existing_window = open_detail_windows[task_key]
+
+        try:
+            existing_window.lift()
+            existing_window.focus_force()
+            return
+        except:
+            del open_detail_windows[task_key]
+
+    details_window = tk.Toplevel(root)
+    details_window.title("Task Details")
+    details_window.geometry("500x400")
+    details_window.configure(bg="#1c2331")
+
+    open_detail_windows[task_key] = details_window
+
+    def on_close():
+        if task_key in open_detail_windows:
+            del open_detail_windows[task_key]
+        details_window.destroy()
+
+    details_window.protocol("WM_DELETE_WINDOW", on_close)
+
+    scrollbar = tk.Scrollbar(details_window)
+    scrollbar.pack(side="right", fill="y")
+
+    text_area = tk.Text(
+        details_window,
+        wrap="word",
+        yscrollcommand=scrollbar.set,
+        bg="#2f4159",
+        fg="white",
+        font=("Segoe UI", 10)
+    )
+    text_area.pack(fill="both", expand=True, padx=10, pady=10)
+
+    scrollbar.config(command=text_area.yview)
+
+    info = f"""
+Task: {t['task']}
+
+Subject: {t['subject']}
+
+Deadline: {t['deadline']}
+
+Type: {t['type']}
+
+Work Type: {t.get('work_type', 'Individual')}
+
+Priority: {t.get('priority', 'Medium')}
+
+Topics: {t['topics']}
+
+Notes: {t.get('notes', '')}
+
+Status: {'Done' if t['done'] else 'Not done'}
+"""
+
+    text_area.insert("1.0", info)
+    text_area.config(state="disabled")
+# -----------------------------
+# GUI
+# -----------------------------
+root = tk.Tk()
+root.title("Study Tracker")
+root.geometry("800x650")
+root.configure(bg="#1c2331")
+
+# Title
+header = tk.Label(
+    root,
+    text="Study Tracker",
+    font=("Segoe UI", 22, "bold"),
+    bg="#1c2331",
+    fg="white"
+)
+header.pack(pady=15)
+
+# Main Frame
+main_frame = tk.Frame(root, bg="#253247", bd=0)
+main_frame.pack(padx=20, pady=10, fill="both", expand=True)
+
+# Input Frame
+input_frame = tk.Frame(main_frame, bg="#2f4159")
+input_frame.pack(fill="x", padx=15, pady=15)
+
+# Labels + Inputs
+label_style = {"bg": "#2f2f4a", "fg": "white", "font": ("Segoe UI", 10, "bold")}
+entry_style = {"font": ("Segoe UI", 10), "bg": "#3a3a55", "fg": "white", "insertbackground": "white"}
+
+tk.Label(input_frame, text="Task", **label_style).grid(row=0, column=0, padx=10, pady=8, sticky="w")
+entry_task = tk.Entry(input_frame, width=30, **entry_style)
+entry_task.grid(row=0, column=1, padx=10, pady=8)
+
+tk.Label(input_frame, text="Subject", **label_style).grid(row=0, column=2, padx=10, pady=8, sticky="w")
+entry_subject = tk.Entry(input_frame, width=30, **entry_style)
+entry_subject.grid(row=0, column=3, padx=10, pady=8)
+
+tk.Label(input_frame, text="Deadline (YYYY-MM-DD HH:MM)", **label_style).grid(row=1, column=0, padx=10, pady=8, sticky="w")
+entry_deadline = tk.Entry(input_frame, width=30, **entry_style)
+entry_deadline.grid(row=1, column=1, padx=10, pady=8)
+
+tk.Label(input_frame, text="Task Type", **label_style).grid(row=1, column=2, padx=10, pady=8, sticky="w")
+combo_type = ttk.Combobox(input_frame, values=["Homework", "Exam", "Project", "Quiz", "Assignment", "Performance Task", "Activity", "Research", "Presentation", "Review", "Other"], width=27)
+combo_type.set("Homework")
+combo_type.grid(row=1, column=3, padx=10, pady=8)
+
+tk.Label(input_frame, text="Work Type", **label_style).grid(row=2, column=0, padx=10, pady=8, sticky="w")
+work_combo = ttk.Combobox(input_frame, values=["Individual", "Pair", "Group"], width=27)
+work_combo.set("Individual")
+work_combo.grid(row=2, column=1, padx=10, pady=8)
+
+tk.Label(input_frame, text="Priority", **label_style).grid(row=3, column=0, padx=10, pady=8, sticky="w")
+priority_combo = ttk.Combobox(input_frame, values=["High", "Medium", "Low"], width=27)
+priority_combo.set("Medium")
+priority_combo.grid(row=3, column=1, padx=10, pady=8)
+
+tk.Label(input_frame, text="Topics", **label_style).grid(row=4, column=0, padx=10, pady=8, sticky="w")
+entry_topics = tk.Entry(input_frame, width=65, **entry_style)
+entry_topics.grid(row=4, column=1, columnspan=3, padx=10, pady=8)
+
+tk.Label(input_frame, text="Notes", **label_style).grid(row=5, column=0, padx=10, pady=8, sticky="nw")
+notes_text = tk.Text(input_frame, width=50, height=4, bg="#3a516d", fg="white", insertbackground="white", font=("Segoe UI", 10))
+notes_text.grid(row=5, column=1, columnspan=3, padx=10, pady=8)
+
+def show_help():
+    help    text = '''How to Use the Study Tracker:
+
+1. Enter a task name
+2. Enter the subject
+3. Enter the deadline in YYYY-MM-DD HH:MM format
+4. Choose the task type
+5. Choose if it is Individual, Pair, or Group
+6. Add optional topics
+7. Click Add Task
+8. Select a task and click Mark Done when finished
+9. Select a task and click Delete Task to remove it
+10. Double-click a task to view full details'''
+
+    messagebox.showinfo("Help", help_text)
+
+# Buttons
+button_frame = tk.Frame(main_frame, bg="#253247")
+button_frame.pack(pady=10)
+
+button_style = {
+    "font": ("Segoe UI", 10, "bold"),
+    "fg": "white",
+    "relief": "flat",
+    "width": 15,
+    "pady": 8
+}
+
+tk.Button(button_frame, text="Add Task", bg="#4f8cff", command=add_task, **button_style).pack(side="left", padx=10)
+tk.Button(button_frame, text="Mark Done", bg="#3fbf7f", command=mark_done, **button_style).pack(side="left", padx=10)
+tk.Button(button_frame, text="Delete Task", bg="#d65a5a", command=delete_task, **button_style).pack(side="left", padx=10)
+tk.Button(button_frame, text="Help", bg="#6c63ff", command=show_help, **button_style).pack(side="left", padx=10)
+
+# Task List Frame
+list_frame = tk.Frame(main_frame, bg="#2f4159")
+list_frame.pack(fill="both", expand=True, padx=15, pady=15)
+
+scrollbar = tk.Scrollbar(list_frame)
+scrollbar.pack(side="right", fill="y")
+
+listbox = tk.Listbox(
+    list_frame,
+    width=100,
+    height=15,
+    bg="#3a516d",
+    fg="white",
+    font=("Segoe UI", 10),
+    selectbackground="#4f8cff",
+    selectforeground="white",
+    relief="flat",
+    yscrollcommand=scrollbar.set
+)
+listbox.pack(fill="both", expand=True, padx=10, pady=10)
+scrollbar.config(command=listbox.yview)
+
+listbox.bind("<Double-Button-1>", show_details)
+
+# Progress Section
+progress_frame = tk.Frame(main_frame, bg="#253247")
+progress_frame.pack(fill="x", padx=15, pady=10)
+
+progress_label = tk.Label(progress_frame, text="Progress: 0 / 0 Tasks Done", bg="#253247", fg="white", font=("Segoe UI", 10, "bold"))
+progress_label.pack(anchor="w")
+
+progress = ttk.Progressbar(progress_frame, length=300, mode="determinate")
+progress.pack(fill="x", pady=5)
+
+# Start
+load_tasks()
+refresh_list()
+
+root.mainloop()
